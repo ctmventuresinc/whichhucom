@@ -122,7 +122,7 @@ function getRandomImage() {
   } else {
     const idx = Math.floor(Math.random() * howardImages.length);
     return {
-      src: `/howard images/${howardImages[idx]}`,
+      src: `/low quality images for howard/${howardImages[idx]}`,
       school: "Howard",
     };
   }
@@ -232,7 +232,7 @@ export default function Page() {
           }}
         >
           {modelsLoading ? (
-            <div>Loading face detection models...</div>
+            <div style={{ textAlign: "center" }}>Loading face detection models...</div>
           ) : croppedImageSrc ? (
             <img
               src={croppedImageSrc}
@@ -245,35 +245,49 @@ export default function Page() {
                 display: "block",
               }}
             />
-          ) : current ? (
-            <img
-              src={current.src}
-              alt="Guess who?"
-              style={{
-                width: "100%",
-                height: "100%",
-                objectFit: "cover",
-                borderRadius: 8,
-                display: "block",
-              }}
-            />
           ) : (
-            <div>Loading image...</div>
+            <div style={{ 
+              display: "flex", 
+              alignItems: "center", 
+              justifyContent: "center",
+              height: "100%"
+            }}>
+              <div style={{ textAlign: "center" }}>
+                <div style={{ 
+                  width: 40, 
+                  height: 40, 
+                  border: "4px solid #f3f3f3", 
+                  borderTop: "4px solid #3498db", 
+                  borderRadius: "50%",
+                  margin: "0 auto 10px",
+                  animation: "spin 1s linear infinite"
+                }}></div>
+                <style jsx>{`
+                  @keyframes spin {
+                    0% { transform: rotate(0deg); }
+                    100% { transform: rotate(360deg); }
+                  }
+                `}</style>
+                Processing image...
+              </div>
+            </div>
           )}
         </div>
       </div>
       {!showResult ? (
-        <div style={{ display: "flex", gap: 24 }}>
+        <div style={{ display: "flex", gap: 16 }}>
           <button
             onClick={() => handleGuess("Hampton")}
             style={{
-              fontSize: "1.25rem",
-              padding: "0.75rem 2rem",
-              borderRadius: 8,
+              background: "#1a365d",
+              color: "white",
               border: "none",
-              background: "#0a174e",
-              color: "#fff",
+              padding: "12px 24px",
+              borderRadius: 8,
+              fontSize: 16,
+              fontWeight: "bold",
               cursor: "pointer",
+              width: "50%",
             }}
           >
             Hampton
@@ -281,40 +295,47 @@ export default function Page() {
           <button
             onClick={() => handleGuess("Howard")}
             style={{
-              fontSize: "1.25rem",
-              padding: "0.75rem 2rem",
-              borderRadius: 8,
+              background: "#ba0c2f",
+              color: "white",
               border: "none",
-              background: "#2e86ab",
-              color: "#fff",
+              padding: "12px 24px",
+              borderRadius: 8,
+              fontSize: 16,
+              fontWeight: "bold",
               cursor: "pointer",
+              width: "50%",
             }}
           >
             Howard
           </button>
         </div>
       ) : (
-        <div style={{ textAlign: "center", marginTop: 20 }}>
-          <div style={{ fontSize: "1.5rem", marginBottom: 10 }}>
-            {current && guessed === current.school ? (
-              <span style={{ color: "#1abc9c" }}>Correct! 🎉</span>
-            ) : (
-              <span style={{ color: "#e74c3c" }}>Nope! 😅</span>
-            )}
-          </div>
-          <div style={{ marginBottom: 16 }}>
-            This is a <b>{current?.school}</b> student.
+        <div style={{ width: "100%" }}>
+          <div
+            style={{
+              fontSize: 20,
+              fontWeight: "bold",
+              color: guessed === current?.school ? "#22c55e" : "#ef4444",
+              marginBottom: 8,
+              textAlign: "center",
+            }}
+          >
+            {guessed === current?.school
+              ? "Correct! 🎉"
+              : `Wrong! It's ${current?.school} 😢`}
           </div>
           <button
             onClick={handlePlayAgain}
             style={{
-              fontSize: "1rem",
-              padding: "0.5rem 1.5rem",
-              borderRadius: 8,
+              background: "#3b82f6",
+              color: "white",
               border: "none",
-              background: "#0a174e",
-              color: "#fff",
+              padding: "12px 24px",
+              borderRadius: 8,
+              fontSize: 16,
+              fontWeight: "bold",
               cursor: "pointer",
+              width: "100%",
             }}
           >
             Play Again

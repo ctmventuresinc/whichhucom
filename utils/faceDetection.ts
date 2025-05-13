@@ -51,7 +51,32 @@ export async function detectAndCropFace(imageUrl: string): Promise<string | null
         
         if (!detections) {
           console.log('No face detected in the image');
-          resolve(imageUrl); // Return original image if no face detected
+          // Instead of returning the original image, create a cropped version of the center
+          // This ensures we never show the full original image
+          const centerX = img.width / 2;
+          const centerY = img.height / 2;
+          const size = Math.min(img.width, img.height) * 0.6; // Take 60% of the smaller dimension
+          
+          const faceCanvas = document.createElement('canvas');
+          const faceCtx = faceCanvas.getContext('2d');
+          if (!faceCtx) {
+            console.error('Could not get face canvas context');
+            resolve(null);
+            return;
+          }
+          
+          faceCanvas.width = size;
+          faceCanvas.height = size;
+          
+          // Draw the center portion of the image
+          faceCtx.drawImage(
+            img, 
+            centerX - size/2, centerY - size/2, size, size,
+            0, 0, size, size
+          );
+          
+          const croppedImageUrl = faceCanvas.toDataURL('image/jpeg');
+          resolve(croppedImageUrl);
           return;
         }
         
