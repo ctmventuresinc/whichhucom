@@ -84,14 +84,14 @@ export default function Page() {
       ) : (
         <div style={{ textAlign: "center", marginTop: 20 }}>
           <div style={{ fontSize: "1.5rem", marginBottom: 10 }}>
-            {guessed === current.school ? (
+            {current && guessed === current.school ? (
               <span style={{ color: "#1abc9c" }}>Correct! 🎉</span>
             ) : (
               <span style={{ color: "#e74c3c" }}>Nope! 😅</span>
             )}
           </div>
           <div style={{ marginBottom: 16 }}>
-            This is a <b>{current.school}</b> student.
+            This is a <b>{current?.school}</b> student.
           </div>
           <button onClick={handlePlayAgain} style={{ fontSize: "1rem", padding: "0.5rem 1.5rem", borderRadius: 8, border: "none", background: "#0a174e", color: "#fff", cursor: "pointer" }}>
             Play Again
