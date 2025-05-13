@@ -229,22 +229,57 @@ export default function Page() {
             justifyContent: "center",
             overflow: "hidden",
             boxShadow: "0 2px 12px rgba(0,0,0,0.07)",
+            position: "relative",
           }}
         >
           {modelsLoading ? (
             <div style={{ textAlign: "center" }}>Loading face detection models...</div>
           ) : croppedImageSrc ? (
-            <img
-              src={croppedImageSrc}
-              alt="Guess who?"
-              style={{
-                width: "100%",
-                height: "100%",
-                objectFit: "cover",
-                borderRadius: 8,
-                display: "block",
-              }}
-            />
+            <>
+              <img
+                src={croppedImageSrc}
+                alt="Guess who?"
+                style={{
+                  width: "100%",
+                  height: "100%",
+                  objectFit: "cover",
+                  borderRadius: 8,
+                  display: "block",
+                }}
+              />
+              {showResult && (
+                <div style={{
+                  position: "absolute",
+                  top: 0,
+                  left: 0,
+                  width: "100%",
+                  height: "100%",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  backgroundColor: "rgba(0, 0, 0, 0.5)",
+                  borderRadius: 8,
+                  zIndex: 10
+                }}>
+                  <div
+                    style={{
+                      fontSize: 24,
+                      fontWeight: "bold",
+                      color: guessed === current?.school ? "#22c55e" : "#ef4444",
+                      textAlign: "center",
+                      padding: "16px",
+                      backgroundColor: "rgba(255, 255, 255, 0.8)",
+                      borderRadius: 8,
+                      maxWidth: "80%"
+                    }}
+                  >
+                    {guessed === current?.school
+                      ? "Correct! 🎉"
+                      : `Wrong! It's ${current?.school} 😢`}
+                  </div>
+                </div>
+              )}
+            </>
           ) : (
             <div style={{ 
               display: "flex", 
@@ -274,56 +309,43 @@ export default function Page() {
           )}
         </div>
       </div>
-      {!showResult ? (
-        <div style={{ display: "flex", gap: 16 }}>
-          <button
-            onClick={() => handleGuess("Hampton")}
-            style={{
-              background: "#1a365d",
-              color: "white",
-              border: "none",
-              padding: "12px 24px",
-              borderRadius: 8,
-              fontSize: 16,
-              fontWeight: "bold",
-              cursor: "pointer",
-              width: "50%",
-            }}
-          >
-            Hampton
-          </button>
-          <button
-            onClick={() => handleGuess("Howard")}
-            style={{
-              background: "#ba0c2f",
-              color: "white",
-              border: "none",
-              padding: "12px 24px",
-              borderRadius: 8,
-              fontSize: 16,
-              fontWeight: "bold",
-              cursor: "pointer",
-              width: "50%",
-            }}
-          >
-            Howard
-          </button>
-        </div>
-      ) : (
-        <div style={{ width: "100%" }}>
-          <div
-            style={{
-              fontSize: 20,
-              fontWeight: "bold",
-              color: guessed === current?.school ? "#22c55e" : "#ef4444",
-              marginBottom: 8,
-              textAlign: "center",
-            }}
-          >
-            {guessed === current?.school
-              ? "Correct! 🎉"
-              : `Wrong! It's ${current?.school} 😢`}
-          </div>
+      <div style={{ display: "flex", gap: 16, width: "100%" }}>
+        {!showResult ? (
+          <>
+            <button
+              onClick={() => handleGuess("Hampton")}
+              style={{
+                background: "#1a365d",
+                color: "white",
+                border: "none",
+                padding: "12px 24px",
+                borderRadius: 8,
+                fontSize: 16,
+                fontWeight: "bold",
+                cursor: "pointer",
+                width: "50%",
+              }}
+            >
+              Hampton
+            </button>
+            <button
+              onClick={() => handleGuess("Howard")}
+              style={{
+                background: "#ba0c2f",
+                color: "white",
+                border: "none",
+                padding: "12px 24px",
+                borderRadius: 8,
+                fontSize: 16,
+                fontWeight: "bold",
+                cursor: "pointer",
+                width: "50%",
+              }}
+            >
+              Howard
+            </button>
+          </>
+        ) : (
           <button
             onClick={handlePlayAgain}
             style={{
@@ -340,8 +362,8 @@ export default function Page() {
           >
             Play Again
           </button>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 }
