@@ -172,6 +172,10 @@ export default function Page() {
   const [guessed, setGuessed] = useState<string | null>(null);
   const [showResult, setShowResult] = useState(false);
   const [modelsLoading, setModelsLoading] = useState(true);
+  const [imageDims, setImageDims] = useState<{
+    width: number;
+    height: number;
+  } | null>(null);
 
   // Game state
   const [gameStarted, setGameStarted] = useState(false);
@@ -253,9 +257,20 @@ export default function Page() {
       // Detect and crop the face with the specified crop mode
       const croppedImage = await detectAndCropFace(fullImageUrl, cropMode);
       setCroppedImageSrc(croppedImage);
+      if (croppedImage) {
+        // Create a temp image to get its dimensions
+        const tempImg = new window.Image();
+        tempImg.src = croppedImage;
+        tempImg.onload = () => {
+          setImageDims({ width: tempImg.width, height: tempImg.height });
+        };
+      } else {
+        setImageDims(null);
+      }
     } catch (error) {
       console.error("Error processing image:", error);
       setCroppedImageSrc(null);
+      setImageDims(null);
     }
   };
 
@@ -350,6 +365,15 @@ export default function Page() {
     setShowGameSummary(false);
     setGameOver(false);
   };
+
+  // In the render, set card size based on imageDims
+  // Use min/max to keep UI reasonable
+  const cardWidth = imageDims
+    ? Math.max(120, Math.min(340, imageDims.width))
+    : 340;
+  const cardHeight = imageDims
+    ? Math.max(120, Math.min(440, imageDims.height))
+    : 440;
 
   // Render welcome screen if game not started
   if (!gameStarted && !gameOver) {
@@ -514,8 +538,8 @@ export default function Page() {
       >
         <div
           style={{
-            width: 340,
-            height: 440,
+            width: cardWidth,
+            height: cardHeight,
             background: "#e5e7eb",
             borderRadius: 8,
             display: "flex",
@@ -536,9 +560,9 @@ export default function Page() {
                 src={croppedImageSrc}
                 alt="Guess who?"
                 style={{
-                  width: "100%",
-                  height: "100%",
-                  objectFit: "cover",
+                  maxWidth: "100%",
+                  maxHeight: "100%",
+                  objectFit: "contain",
                   borderRadius: 8,
                   display: "block",
                 }}
