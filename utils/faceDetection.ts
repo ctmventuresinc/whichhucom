@@ -22,7 +22,8 @@ export type CropMode =
   | "tight"
   | "eyes-only"
   | "mouth-only"
-  | "forehead-only";
+  | "forehead-only"
+  | "random-feature";
 
 export async function detectAndCropFace(
   imageUrl: string,

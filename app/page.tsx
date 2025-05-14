@@ -128,20 +128,23 @@ const ROUNDS = [
   {
     id: 2,
     name: "Round 2",
-    description: "Now it gets harder! 5 correct in 30 seconds",
+    description:
+      "Now it gets harder! 5 correct in 30 seconds (random facial feature)",
     timeLimit: 30,
     targetScore: 5,
-    cropMode: "tight" as CropMode,
+    cropMode: "random-feature" as CropMode,
   },
   {
     id: 3,
     name: "Final Round",
-    description: "Expert level! 5 correct in 20 seconds",
+    description: "Expert level! 5 correct in 20 seconds (eyes only)",
     timeLimit: 20,
     targetScore: 5,
     cropMode: "eyes-only" as CropMode,
   },
 ];
+
+const FEATURE_CROPS: CropMode[] = ["eyes-only", "mouth-only", "forehead-only"];
 
 function getRandomImage() {
   const isHampton = Math.random() < 0.5;
@@ -232,7 +235,11 @@ export default function Page() {
     setCroppedImageSrc(null);
 
     if (randomImage) {
-      const cropMode = ROUNDS[currentRound - 1].cropMode;
+      let cropMode = ROUNDS[currentRound - 1].cropMode;
+      if (cropMode === "random-feature") {
+        cropMode =
+          FEATURE_CROPS[Math.floor(Math.random() * FEATURE_CROPS.length)];
+      }
       processImage(randomImage.src, cropMode);
     }
   };
