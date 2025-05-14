@@ -1,9 +1,10 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   detectAndCropFace,
   loadFaceDetectionModels,
+  CropMode,
 } from "../utils/faceDetection";
 
 const hamptonImages = [
@@ -114,6 +115,34 @@ const howardImages = [
   "Wright_Gerald.JPG",
 ];
 
+// Round configurations
+const ROUNDS = [
+  {
+    id: 1,
+    name: "Round 1",
+    description: "Get 5 correct guesses in 60 seconds to advance",
+    timeLimit: 60,
+    targetScore: 5,
+    cropMode: "normal" as CropMode,
+  },
+  {
+    id: 2,
+    name: "Round 2",
+    description: "Now it gets harder! 5 correct in 30 seconds",
+    timeLimit: 30,
+    targetScore: 5,
+    cropMode: "tight" as CropMode,
+  },
+  {
+    id: 3,
+    name: "Final Round",
+    description: "Expert level! 5 correct in 20 seconds",
+    timeLimit: 20,
+    targetScore: 5,
+    cropMode: "eyes-only" as CropMode,
+  },
+];
+
 function getRandomImage() {
   const isHampton = Math.random() < 0.5;
   if (isHampton) {
@@ -141,6 +170,18 @@ export default function Page() {
   const [showResult, setShowResult] = useState(false);
   const [modelsLoading, setModelsLoading] = useState(true);
 
+  // Game state
+  const [gameStarted, setGameStarted] = useState(false);
+  const [currentRound, setCurrentRound] = useState(0); // 0 = not started
+  const [score, setScore] = useState(0);
+  const [remainingTime, setRemainingTime] = useState(0);
+  const [gameOver, setGameOver] = useState(false);
+  const [streak, setStreak] = useState(0);
+  const [showGameSummary, setShowGameSummary] = useState(false);
+
+  // Timer reference
+  const timerRef = useRef<NodeJS.Timeout | null>(null);
+
   // Load face detection models on mount
   useEffect(() => {
     const loadModels = async () => {
@@ -156,25 +197,54 @@ export default function Page() {
     loadModels();
   }, []);
 
-  // On mount, pick the first image (fixes hydration error)
+  // Timer effect
   useEffect(() => {
+    if (gameStarted && remainingTime > 0 && !showResult) {
+      timerRef.current = setTimeout(() => {
+        setRemainingTime((prevTime) => {
+          if (prevTime <= 1) {
+            // Time's up for this round
+            endRound();
+            return 0;
+          }
+          return prevTime - 1;
+        });
+      }, 1000);
+    }
+
+    return () => {
+      if (timerRef.current) {
+        clearTimeout(timerRef.current);
+      }
+    };
+  }, [gameStarted, remainingTime, showResult]);
+
+  // Load new image when round changes or after guess
+  useEffect(() => {
+    if (gameStarted && currentRound > 0 && !showResult) {
+      loadNewImage();
+    }
+  }, [currentRound, showResult]);
+
+  const loadNewImage = () => {
     const randomImage = getRandomImage();
     setCurrent(randomImage);
+    setCroppedImageSrc(null);
 
-    // Process the image for face detection once models are loaded
-    if (!modelsLoading && randomImage) {
-      processImage(randomImage.src);
+    if (randomImage) {
+      const cropMode = ROUNDS[currentRound - 1].cropMode;
+      processImage(randomImage.src, cropMode);
     }
-  }, [modelsLoading]);
+  };
 
-  // Process image for face detection
-  const processImage = async (imageSrc: string) => {
+  // Process image for face detection with appropriate crop mode
+  const processImage = async (imageSrc: string, cropMode: CropMode) => {
     try {
       // Get the full URL including the domain
       const fullImageUrl = window.location.origin + imageSrc;
 
-      // Detect and crop the face
-      const croppedImage = await detectAndCropFace(fullImageUrl);
+      // Detect and crop the face with the specified crop mode
+      const croppedImage = await detectAndCropFace(fullImageUrl, cropMode);
       setCroppedImageSrc(croppedImage);
     } catch (error) {
       console.error("Error processing image:", error);
@@ -185,20 +255,219 @@ export default function Page() {
   const handleGuess = (guess: string) => {
     setGuessed(guess);
     setShowResult(true);
+
+    // Update score and streak
+    if (guess === current?.school) {
+      setScore((prev) => prev + 1);
+      setStreak((prev) => prev + 1);
+    } else {
+      setStreak(0);
+    }
+
+    // Check if timer should be stopped
+    if (timerRef.current) {
+      clearTimeout(timerRef.current);
+    }
+
+    // Automatic continue after 1.5 seconds
+    setTimeout(() => {
+      if (
+        guess === current?.school &&
+        streak + 1 >= ROUNDS[currentRound - 1].targetScore
+      ) {
+        // Met target score, advance to next round or end game
+        if (currentRound < ROUNDS.length) {
+          advanceToNextRound();
+        } else {
+          endGame(true); // Win
+        }
+      } else if (remainingTime <= 0) {
+        endRound();
+      } else {
+        // Continue with next image
+        setShowResult(false);
+        loadNewImage();
+      }
+    }, 1500);
   };
 
-  const handlePlayAgain = () => {
-    const randomImage = getRandomImage();
-    setCurrent(randomImage);
-    setCroppedImageSrc(null);
-    setGuessed(null);
-    setShowResult(false);
+  const startGame = () => {
+    setGameStarted(true);
+    setCurrentRound(1);
+    setScore(0);
+    setStreak(0);
+    setRemainingTime(ROUNDS[0].timeLimit);
+    setGameOver(false);
+    setShowGameSummary(false);
+  };
 
-    // Process the new image
-    if (randomImage) {
-      processImage(randomImage.src);
+  const advanceToNextRound = () => {
+    setCurrentRound((prev) => prev + 1);
+    setStreak(0);
+    setRemainingTime(ROUNDS[currentRound].timeLimit);
+    setShowResult(false);
+  };
+
+  const endRound = () => {
+    // Check if player met target score
+    if (streak >= ROUNDS[currentRound - 1].targetScore) {
+      if (currentRound < ROUNDS.length) {
+        advanceToNextRound();
+      } else {
+        endGame(true); // Win
+      }
+    } else {
+      endGame(false); // Did not reach target score
     }
   };
+
+  const endGame = (isWin: boolean) => {
+    setGameOver(true);
+    setShowGameSummary(true);
+    setGameStarted(false);
+    // Final message depends on how far they got
+    if (isWin && currentRound === ROUNDS.length) {
+      // They beat all rounds
+    } else if (currentRound > 1) {
+      // They made it past at least one round
+    } else {
+      // They didn't make it past round 1
+    }
+  };
+
+  const restartGame = () => {
+    setGameStarted(false);
+    setCurrentRound(0);
+    setScore(0);
+    setStreak(0);
+    setShowGameSummary(false);
+    setGameOver(false);
+  };
+
+  // Render welcome screen if game not started
+  if (!gameStarted && !gameOver) {
+    return (
+      <div
+        style={{
+          display: "flex",
+          flexDirection: "column",
+          justifyContent: "center",
+          alignItems: "center",
+          height: "100vh",
+          background: "#f7f7fa",
+          padding: "0 16px",
+        }}
+      >
+        <h1 style={{ marginBottom: 32, textAlign: "center" }}>
+          Hampton or Howard?
+        </h1>
+        <div
+          style={{
+            background: "#fff",
+            padding: 24,
+            borderRadius: 12,
+            boxShadow: "0 2px 12px rgba(0,0,0,0.07)",
+            marginBottom: 24,
+            maxWidth: "600px",
+            width: "100%",
+          }}
+        >
+          <h2 style={{ marginBottom: 16, textAlign: "center" }}>
+            The Ultimate HBCU Challenge
+          </h2>
+          <p style={{ marginBottom: 24, lineHeight: 1.5 }}>
+            Can you tell the difference between Hampton and Howard students? It
+            might be harder than you think!
+          </p>
+
+          <div style={{ marginBottom: 24 }}>
+            <h3 style={{ marginBottom: 12 }}>Game Rules:</h3>
+            <ul style={{ paddingLeft: 24, lineHeight: 1.5 }}>
+              {ROUNDS.map((round) => (
+                <li key={round.id} style={{ marginBottom: 8 }}>
+                  <strong>{round.name}:</strong> {round.description}
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          <button
+            onClick={startGame}
+            style={{
+              background: "#3b82f6",
+              color: "white",
+              border: "none",
+              padding: "12px 24px",
+              borderRadius: 8,
+              fontSize: 16,
+              fontWeight: "bold",
+              cursor: "pointer",
+              width: "100%",
+            }}
+          >
+            Start Game
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // Game summary screen
+  if (showGameSummary) {
+    return (
+      <div
+        style={{
+          display: "flex",
+          flexDirection: "column",
+          justifyContent: "center",
+          alignItems: "center",
+          height: "100vh",
+          background: "#f7f7fa",
+          padding: "0 16px",
+        }}
+      >
+        <h1 style={{ marginBottom: 32, textAlign: "center" }}>Game Over</h1>
+        <div
+          style={{
+            background: "#fff",
+            padding: 24,
+            borderRadius: 12,
+            boxShadow: "0 2px 12px rgba(0,0,0,0.07)",
+            marginBottom: 24,
+            maxWidth: "600px",
+            width: "100%",
+          }}
+        >
+          <h2 style={{ marginBottom: 16, textAlign: "center" }}>
+            {currentRound === ROUNDS.length + 1
+              ? "You Won! 🏆"
+              : `You Made it to Round ${currentRound}`}
+          </h2>
+
+          <p style={{ marginBottom: 24, textAlign: "center", fontSize: 18 }}>
+            Total Score: <strong>{score}</strong>
+          </p>
+
+          <button
+            onClick={restartGame}
+            style={{
+              background: "#3b82f6",
+              color: "white",
+              border: "none",
+              padding: "12px 24px",
+              borderRadius: 8,
+              fontSize: 16,
+              fontWeight: "bold",
+              cursor: "pointer",
+              width: "100%",
+            }}
+          >
+            Play Again
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div
@@ -211,6 +480,21 @@ export default function Page() {
         background: "#f7f7fa",
       }}
     >
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          width: "340px",
+          marginBottom: 12,
+        }}
+      >
+        <div style={{ fontWeight: "bold" }}>Round {currentRound}</div>
+        <div>
+          Score: {streak}/{ROUNDS[currentRound - 1].targetScore}
+        </div>
+        <div>Time: {remainingTime}s</div>
+      </div>
+
       <h1 style={{ marginBottom: 32 }}>Hampton or Howard?</h1>
       <div
         style={{
@@ -362,22 +646,9 @@ export default function Page() {
             </button>
           </>
         ) : (
-          <button
-            onClick={handlePlayAgain}
-            style={{
-              background: "#3b82f6",
-              color: "white",
-              border: "none",
-              padding: "12px 24px",
-              borderRadius: 8,
-              fontSize: 16,
-              fontWeight: "bold",
-              cursor: "pointer",
-              width: "100%",
-            }}
-          >
-            Play Again
-          </button>
+          <div style={{ width: "100%", textAlign: "center" }}>
+            Loading next image...
+          </div>
         )}
       </div>
     </div>

@@ -16,8 +16,17 @@ export async function loadFaceDetectionModels() {
   }
 }
 
+// Different cropping modes for different rounds
+export type CropMode =
+  | "normal"
+  | "tight"
+  | "eyes-only"
+  | "mouth-only"
+  | "forehead-only";
+
 export async function detectAndCropFace(
-  imageUrl: string
+  imageUrl: string,
+  cropMode: CropMode = "normal"
 ): Promise<string | null> {
   if (!modelsLoaded) {
     await loadFaceDetectionModels();
@@ -113,11 +122,66 @@ export async function detectAndCropFace(
           height: detection.box.height * scaleY,
         };
 
-        // Add padding around the face
-        const padding = {
-          width: box.width * 0.4,
-          height: box.height * 0.4,
-        };
+        // Adjust cropping based on cropMode
+        let x, y, width, height;
+        let padding = { width: 0, height: 0 };
+
+        switch (cropMode) {
+          case "tight":
+            // Tighter crop around the face - less context
+            padding = {
+              width: box.width * 0.1,
+              height: box.height * 0.1,
+            };
+            break;
+
+          case "eyes-only":
+            // Focus on the upper third of the face (eyes)
+            padding = {
+              width: box.width * 0.1,
+              height: box.height * 0.05,
+            };
+            // Adjust y to focus on eyes region
+            box.y = box.y + box.height * 0.1;
+            box.height = box.height * 0.35;
+            break;
+
+          case "mouth-only":
+            // Focus on the lower third of the face (mouth)
+            padding = {
+              width: box.width * 0.1,
+              height: box.height * 0.05,
+            };
+            // Adjust y to focus on mouth region
+            box.y = box.y + box.height * 0.6;
+            box.height = box.height * 0.35;
+            break;
+
+          case "forehead-only":
+            // Focus on the forehead region
+            padding = {
+              width: box.width * 0.1,
+              height: box.height * 0.05,
+            };
+            // Adjust to focus on forehead
+            box.height = box.height * 0.3;
+            break;
+
+          case "normal":
+          default:
+            // Default padding (original behavior)
+            padding = {
+              width: box.width * 0.4,
+              height: box.height * 0.4,
+            };
+            break;
+        }
+
+        // Calculate crop dimensions with padding
+        x = Math.max(0, box.x - padding.width / 2);
+        y = Math.max(0, box.y - padding.height / 2);
+        width = Math.min(img.width - x, box.width + padding.width);
+        height = Math.min(img.height - y, box.height + padding.height);
 
         // Create the final canvas for the cropped face
         const faceCanvas = document.createElement("canvas");
@@ -127,12 +191,6 @@ export async function detectAndCropFace(
           resolve(null);
           return;
         }
-
-        // Calculate crop dimensions with padding
-        const x = Math.max(0, box.x - padding.width / 2);
-        const y = Math.max(0, box.y - padding.height / 2);
-        const width = Math.min(img.width - x, box.width + padding.width);
-        const height = Math.min(img.height - y, box.height + padding.height);
 
         faceCanvas.width = width;
         faceCanvas.height = height;
