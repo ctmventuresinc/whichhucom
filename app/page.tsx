@@ -1,7 +1,10 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { detectAndCropFace, loadFaceDetectionModels } from "../utils/faceDetection";
+import {
+  detectAndCropFace,
+  loadFaceDetectionModels,
+} from "../utils/faceDetection";
 
 const hamptonImages = [
   "Andrew_Creary.jpeg",
@@ -145,11 +148,11 @@ export default function Page() {
         await loadFaceDetectionModels();
         setModelsLoading(false);
       } catch (error) {
-        console.error('Error loading face detection models:', error);
+        console.error("Error loading face detection models:", error);
         setModelsLoading(false);
       }
     };
-    
+
     loadModels();
   }, []);
 
@@ -157,24 +160,24 @@ export default function Page() {
   useEffect(() => {
     const randomImage = getRandomImage();
     setCurrent(randomImage);
-    
+
     // Process the image for face detection once models are loaded
     if (!modelsLoading && randomImage) {
       processImage(randomImage.src);
     }
   }, [modelsLoading]);
-  
+
   // Process image for face detection
   const processImage = async (imageSrc: string) => {
     try {
       // Get the full URL including the domain
       const fullImageUrl = window.location.origin + imageSrc;
-      
+
       // Detect and crop the face
       const croppedImage = await detectAndCropFace(fullImageUrl);
       setCroppedImageSrc(croppedImage);
     } catch (error) {
-      console.error('Error processing image:', error);
+      console.error("Error processing image:", error);
       setCroppedImageSrc(null);
     }
   };
@@ -190,7 +193,7 @@ export default function Page() {
     setCroppedImageSrc(null);
     setGuessed(null);
     setShowResult(false);
-    
+
     // Process the new image
     if (randomImage) {
       processImage(randomImage.src);
@@ -233,7 +236,9 @@ export default function Page() {
           }}
         >
           {modelsLoading ? (
-            <div style={{ textAlign: "center" }}>Loading face detection models...</div>
+            <div style={{ textAlign: "center" }}>
+              Loading face detection models...
+            </div>
           ) : croppedImageSrc ? (
             <>
               <img
@@ -248,29 +253,32 @@ export default function Page() {
                 }}
               />
               {showResult && (
-                <div style={{
-                  position: "absolute",
-                  top: 0,
-                  left: 0,
-                  width: "100%",
-                  height: "100%",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  backgroundColor: "rgba(0, 0, 0, 0.5)",
-                  borderRadius: 8,
-                  zIndex: 10
-                }}>
+                <div
+                  style={{
+                    position: "absolute",
+                    top: 0,
+                    left: 0,
+                    width: "100%",
+                    height: "100%",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    backgroundColor: "rgba(0, 0, 0, 0.5)",
+                    borderRadius: 8,
+                    zIndex: 10,
+                  }}
+                >
                   <div
                     style={{
                       fontSize: 24,
                       fontWeight: "bold",
-                      color: guessed === current?.school ? "#22c55e" : "#ef4444",
+                      color:
+                        guessed === current?.school ? "#22c55e" : "#ef4444",
                       textAlign: "center",
                       padding: "16px",
                       backgroundColor: "rgba(255, 255, 255, 0.8)",
                       borderRadius: 8,
-                      maxWidth: "80%"
+                      maxWidth: "80%",
                     }}
                   >
                     {guessed === current?.school
@@ -281,26 +289,34 @@ export default function Page() {
               )}
             </>
           ) : (
-            <div style={{ 
-              display: "flex", 
-              alignItems: "center", 
-              justifyContent: "center",
-              height: "100%"
-            }}>
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                height: "100%",
+              }}
+            >
               <div style={{ textAlign: "center" }}>
-                <div style={{ 
-                  width: 40, 
-                  height: 40, 
-                  border: "4px solid #f3f3f3", 
-                  borderTop: "4px solid #3498db", 
-                  borderRadius: "50%",
-                  margin: "0 auto 10px",
-                  animation: "spin 1s linear infinite"
-                }}></div>
+                <div
+                  style={{
+                    width: 40,
+                    height: 40,
+                    border: "4px solid #f3f3f3",
+                    borderTop: "4px solid #3498db",
+                    borderRadius: "50%",
+                    margin: "0 auto 10px",
+                    animation: "spin 1s linear infinite",
+                  }}
+                ></div>
                 <style jsx>{`
                   @keyframes spin {
-                    0% { transform: rotate(0deg); }
-                    100% { transform: rotate(360deg); }
+                    0% {
+                      transform: rotate(0deg);
+                    }
+                    100% {
+                      transform: rotate(360deg);
+                    }
                   }
                 `}</style>
                 Processing image...
@@ -309,7 +325,7 @@ export default function Page() {
           )}
         </div>
       </div>
-      <div style={{ display: "flex", gap: 16, width: "100%" }}>
+      <div style={{ display: "flex", gap: 16, width: "340px" }}>
         {!showResult ? (
           <>
             <button
@@ -323,7 +339,7 @@ export default function Page() {
                 fontSize: 16,
                 fontWeight: "bold",
                 cursor: "pointer",
-                width: "50%",
+                flex: 1,
               }}
             >
               Hampton
@@ -339,7 +355,7 @@ export default function Page() {
                 fontSize: 16,
                 fontWeight: "bold",
                 cursor: "pointer",
-                width: "50%",
+                flex: 1,
               }}
             >
               Howard
