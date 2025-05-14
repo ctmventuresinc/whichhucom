@@ -6,16 +6,13 @@ export async function loadFaceDetectionModels() {
   if (modelsLoaded) return;
 
   try {
-    // Load the required face-api.js models
-    await Promise.all([
-      faceapi.nets.tinyFaceDetector.loadFromUri("/models"),
-      faceapi.nets.faceLandmark68Net.loadFromUri("/models"),
-    ]);
+    // Only load the tiny face detector model - it's the lightest and fastest
+    await faceapi.nets.tinyFaceDetector.loadFromUri("/models");
 
     modelsLoaded = true;
-    console.log("Face detection models loaded successfully");
+    console.log("Face detection model loaded successfully");
   } catch (error) {
-    console.error("Error loading face detection models:", error);
+    console.error("Error loading face detection model:", error);
   }
 }
 
@@ -33,45 +30,64 @@ export async function detectAndCropFace(
 
     img.onload = async () => {
       try {
-        // Create a canvas to draw the image
-        const canvas = document.createElement("canvas");
-        const ctx = canvas.getContext("2d");
-        if (!ctx) {
+        // Resize the image for faster processing if it's large
+        const MAX_SIZE = 500; // Max width or height
+        let processWidth = img.width;
+        let processHeight = img.height;
+
+        // Scale down large images for faster processing
+        if (img.width > MAX_SIZE || img.height > MAX_SIZE) {
+          if (img.width > img.height) {
+            processWidth = MAX_SIZE;
+            processHeight = Math.floor(img.height * (MAX_SIZE / img.width));
+          } else {
+            processHeight = MAX_SIZE;
+            processWidth = Math.floor(img.width * (MAX_SIZE / img.height));
+          }
+        }
+
+        // Create a temporary canvas for processing
+        const tempCanvas = document.createElement("canvas");
+        tempCanvas.width = processWidth;
+        tempCanvas.height = processHeight;
+        const tempCtx = tempCanvas.getContext("2d");
+        if (!tempCtx) {
           console.error("Could not get canvas context");
           resolve(null);
           return;
         }
 
-        canvas.width = img.width;
-        canvas.height = img.height;
-        ctx.drawImage(img, 0, 0, img.width, img.height);
+        // Draw the resized image for processing
+        tempCtx.drawImage(img, 0, 0, processWidth, processHeight);
 
-        // Detect faces in the image
-        const detections = await faceapi
-          .detectSingleFace(img, new faceapi.TinyFaceDetectorOptions())
-          .withFaceLandmarks();
+        // Use optimized detection options
+        const options = new faceapi.TinyFaceDetectorOptions({
+          inputSize: 320, // smaller input size
+          scoreThreshold: 0.5, // balance between speed and accuracy
+        });
 
-        if (!detections) {
+        // Only detect the face bounding box - no landmarks for better performance
+        const detection = await faceapi.detectSingleFace(tempCanvas, options);
+
+        if (!detection) {
           console.log("No face detected in the image");
-          // Instead of returning the original image, create a cropped version of the center
-          // This ensures we never show the full original image
+          // Return a center crop when no face is detected
           const centerX = img.width / 2;
           const centerY = img.height / 2;
-          const size = Math.min(img.width, img.height) * 0.6; // Take 60% of the smaller dimension
+          const size = Math.min(img.width, img.height) * 0.6;
 
-          const faceCanvas = document.createElement("canvas");
-          const faceCtx = faceCanvas.getContext("2d");
-          if (!faceCtx) {
-            console.error("Could not get face canvas context");
+          const resultCanvas = document.createElement("canvas");
+          resultCanvas.width = size;
+          resultCanvas.height = size;
+          const resultCtx = resultCanvas.getContext("2d");
+
+          if (!resultCtx) {
+            console.error("Could not get result canvas context");
             resolve(null);
             return;
           }
 
-          faceCanvas.width = size;
-          faceCanvas.height = size;
-
-          // Draw the center portion of the image
-          faceCtx.drawImage(
+          resultCtx.drawImage(
             img,
             centerX - size / 2,
             centerY - size / 2,
@@ -83,19 +99,27 @@ export async function detectAndCropFace(
             size
           );
 
-          const croppedImageUrl = faceCanvas.toDataURL("image/jpeg");
-          resolve(croppedImageUrl);
+          resolve(resultCanvas.toDataURL("image/jpeg", 0.85)); // Use compression for smaller file size
           return;
         }
 
-        // Get the face box with some padding
-        const box = detections.detection.box;
-        const padding = {
-          width: box.width * 0.4, // 40% padding
-          height: box.height * 0.4, // 40% padding
+        // Scale the detection back to original image dimensions
+        const scaleX = img.width / processWidth;
+        const scaleY = img.height / processHeight;
+        const box = {
+          x: detection.box.x * scaleX,
+          y: detection.box.y * scaleY,
+          width: detection.box.width * scaleX,
+          height: detection.box.height * scaleY,
         };
 
-        // Create a new canvas for the cropped face
+        // Add padding around the face
+        const padding = {
+          width: box.width * 0.4,
+          height: box.height * 0.4,
+        };
+
+        // Create the final canvas for the cropped face
         const faceCanvas = document.createElement("canvas");
         const faceCtx = faceCanvas.getContext("2d");
         if (!faceCtx) {
@@ -104,7 +128,7 @@ export async function detectAndCropFace(
           return;
         }
 
-        // Set dimensions for the cropped face
+        // Calculate crop dimensions with padding
         const x = Math.max(0, box.x - padding.width / 2);
         const y = Math.max(0, box.y - padding.height / 2);
         const width = Math.min(img.width - x, box.width + padding.width);
@@ -116,12 +140,36 @@ export async function detectAndCropFace(
         // Draw the cropped face
         faceCtx.drawImage(img, x, y, width, height, 0, 0, width, height);
 
-        // Convert canvas to data URL
-        const croppedImageUrl = faceCanvas.toDataURL("image/jpeg");
-        resolve(croppedImageUrl);
+        // Convert to data URL with compression for smaller size
+        resolve(faceCanvas.toDataURL("image/jpeg", 0.85));
       } catch (error) {
         console.error("Error detecting face:", error);
-        resolve(imageUrl); // Return original image on error
+        // Return a center crop on error
+        const centerX = img.width / 2;
+        const centerY = img.height / 2;
+        const size = Math.min(img.width, img.height) * 0.6;
+
+        const resultCanvas = document.createElement("canvas");
+        resultCanvas.width = size;
+        resultCanvas.height = size;
+        const resultCtx = resultCanvas.getContext("2d");
+
+        if (resultCtx) {
+          resultCtx.drawImage(
+            img,
+            centerX - size / 2,
+            centerY - size / 2,
+            size,
+            size,
+            0,
+            0,
+            size,
+            size
+          );
+          resolve(resultCanvas.toDataURL("image/jpeg", 0.85));
+        } else {
+          resolve(null);
+        }
       }
     };
 
